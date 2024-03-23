@@ -26,7 +26,7 @@ setup(
         'console_scripts': [
             'offboard_control = px4_control.offboard_control:main',
             'visualizer = px4_control.visualizer:main', 
-            'processes = px4_control.processes:main'
+            'simulation = px4_control.simulation:main'
         ],
     },
 )

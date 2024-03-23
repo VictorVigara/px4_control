@@ -56,8 +56,8 @@ def generate_launch_description():
         Node(
             package='px4_control',
             namespace='px4_control',
-            executable='processes',
-            name='processes',
+            executable='simulation',
+            name='simulation',
             prefix='gnome-terminal --'
         ),
         Node(
