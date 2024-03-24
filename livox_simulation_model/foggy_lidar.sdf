@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="foggy_lidar">
+    <link name="link">
+
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.4</mass>
+        <inertia>
+          <ixx>4.5333e-4</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>4.5333e-4</iyy>
+          <iyz>0</iyz>
+          <izz>2.4e-4</izz>
+        </inertia>
+      </inertial>
+
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.1 0.06 0.06</size>
+          </box>
+        </geometry>
+      </visual>
+
+      <sensor type="ray" name="mid360">
+        <pose>-0.032 0 0.171 0 0 0</pose>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+        <update_rate>10</update_rate>
+        <!-- This ray plgin is only for visualization. -->
+        <plugin name="mid360_plugin" filename="libros2_livox.so">
+			<ray>
+			  <scan>
+				<horizontal>
+				<samples>100</samples>
+				<resolution>1</resolution>
+				<min_angle>0.0</min_angle>
+				<max_angle>6.28</max_angle>
+				</horizontal>
+				<vertical>
+				<samples>360</samples>
+				<resolution>1</resolution>
+				<min_angle>-0.126</min_angle>
+				<max_angle>0.963</max_angle>
+				</vertical>
+			  </scan>
+			  <range>
+				<min>0.1</min>
+				<max>200.0</max>
+				<resolution>0.002</resolution>
+			  </range>
+			  <noise>
+				<type>gaussian</type>
+				<mean>0.0</mean>
+				<stddev>0.01</stddev>
+			  </noise>
+			</ray>
+          <visualize>true</visualize>
+		  <samples>40000</samples>
+		  <downsample>1</downsample>
+		  <csv_file_name>/home/victor/ws_sensor_combined/src/livox_laser_simulation_ros2/scan_mode/mid360.csv</csv_file_name>
+		  <topic>mid360</topic>
+        </plugin>
+      </sensor>
+    </link>
+  </model>
+</sdf>
+
+<!-- vim: set et fenc= ff=unix sts=0 sw=2 ts=2 : -->

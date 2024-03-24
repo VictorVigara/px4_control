@@ -10,8 +10,8 @@ commands = [
     # Run the Micro XRCE-DDS Agent
     "MicroXRCEAgent udp4 -p 8888",
 
-    # Run the PX4 SITL simulation
-    "cd ~/PX4-Autopilot && make px4_sitl gazebo-classic"
+    # Run the PX4 SITL simulation with livox360 (included in iris opt flow )
+    "cd ~/PX4-Autopilot && make px4_sitl gazebo-classic_iris_opt_flow"
 
     # Run QGroundControl
     # "cd ~/QGroundControl && ./QGroundControl.AppImage"
