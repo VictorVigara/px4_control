@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleLocalPosition, VehicleStatus
+from geometry_msgs.msg import Vector3Stamped
 
 
 class OffboardControl(Node):
@@ -32,15 +33,26 @@ class OffboardControl(Node):
             VehicleLocalPosition, '/fmu/out/vehicle_local_position', self.vehicle_local_position_callback, qos_profile)
         self.vehicle_status_subscriber = self.create_subscription(
             VehicleStatus, '/fmu/out/vehicle_status', self.vehicle_status_callback, qos_profile)
+        self.global_waypoint_subscriber = self.create_subscription(
+            Vector3Stamped, '/global_waypoint', self.global_waypoint_callback, qos_profile)
 
         # Initialize variables
         self.offboard_setpoint_counter = 0
         self.vehicle_local_position = VehicleLocalPosition()
         self.vehicle_status = VehicleStatus()
         self.takeoff_height = -5.0
+        self.global_waypoint = [0.0, 0.0, 0.0]
 
         # Create a timer to publish control commands
         self.timer = self.create_timer(0.1, self.timer_callback)
+
+    def global_waypoint_callback(self, msg):
+        # Convert from ENU (ROS) to NED (px4)
+        x = msg.vector.x
+        y = -msg.vector.y
+        z = -msg.vector.z
+
+        self.global_waypoint = [x, y, z]
 
     def vehicle_local_position_callback(self, vehicle_local_position):
         """Callback function for vehicle_local_position topic subscriber."""
@@ -120,8 +132,9 @@ class OffboardControl(Node):
             self.engage_offboard_mode()
             self.arm()
 
-        if self.vehicle_local_position.z > self.takeoff_height and self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
-            self.publish_position_setpoint(0.0, 0.0, self.takeoff_height)
+        self.get_logger().info(f"Vehicle navigation status: {self.vehicle_status.nav_state}")
+        if self.vehicle_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+            self.publish_position_setpoint(self.global_waypoint[0], self.global_waypoint[1], self.global_waypoint[2])
 
         elif self.vehicle_local_position.z <= self.takeoff_height:
             self.land()
