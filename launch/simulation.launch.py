@@ -66,5 +66,9 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             arguments=['-d', [os.path.join(package_dir, 'visualize.rviz')]]
-        )
+        ),
+        Node(
+            package = "tf2_ros", 
+            executable = "static_transform_publisher",
+            arguments = ["0", "0", "0", "0", "0", "0", "odom", "mid360"])
     ])
