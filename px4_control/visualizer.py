@@ -48,7 +48,11 @@ from px4_msgs.msg import VehicleLocalPosition
 from px4_msgs.msg import TrajectorySetpoint
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import Path
+from nav_msgs.msg import Odometry
+
 from visualization_msgs.msg import Marker
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
 
 def vector2PoseMsg(frame_id, position, attitude):
     pose_msg = PoseStamped()
@@ -75,6 +79,9 @@ class PX4Visualizer(Node):
             depth=1
         )
 
+        # Initialize the transform broadcaster
+        self.tf_broadcaster = TransformBroadcaster(self)
+
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
             '/fmu/out/vehicle_attitude',
@@ -95,10 +102,12 @@ class PX4Visualizer(Node):
         self.vehicle_vel_pub = self.create_publisher(Marker, '/px4_visualizer/vehicle_velocity', 10)
         self.vehicle_path_pub = self.create_publisher(Path, '/px4_visualizer/vehicle_path', 10)
         self.setpoint_path_pub = self.create_publisher(Path, '/px4_visualizer/setpoint_path', 10)
+        self.odometry_publisher = self.create_publisher(Odometry, '/odom', 10)
 
         self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
         self.vehicle_local_position = np.array([0.0, 0.0, 0.0])
         self.vehicle_local_velocity = np.array([0.0, 0.0, 0.0])
+        self.vehicle_local_angular_velocity = np.array([0.0, 0.0, 0.0])
         self.setpoint_position = np.array([0.0, 0.0, 0.0])
         self.vehicle_path_msg = Path()
         self.setpoint_path_msg = Path()
@@ -120,6 +129,9 @@ class PX4Visualizer(Node):
         self.vehicle_local_velocity[0] = msg.vx
         self.vehicle_local_velocity[1] = -msg.vy
         self.vehicle_local_velocity[2] = -msg.vz
+        self.vehicle_local_angular_velocity[0] = msg.ax
+        self.vehicle_local_angular_velocity[1] = -msg.ay
+        self.vehicle_local_angular_velocity[2] = -msg.az
 
     def trajectory_setpoint_callback(self, msg):
         self.setpoint_position[0] = msg.position[0]
@@ -129,7 +141,7 @@ class PX4Visualizer(Node):
     def create_arrow_marker(self, id, tail, vector):
         msg = Marker()
         msg.action = Marker.ADD
-        msg.header.frame_id = 'map'
+        msg.header.frame_id = 'odom'
         # msg.header.stamp = Clock().now().nanoseconds / 1000
         msg.ns = 'arrow'
         msg.id = id
@@ -153,8 +165,54 @@ class PX4Visualizer(Node):
         msg.points = [tail_point, head_point]
         return msg
 
+    def create_odom_msg(self): 
+        odom_msg = Odometry()
+
+        #odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = 'odom'
+        
+        # position
+        odom_msg.pose.pose.position.x = self.vehicle_local_position[0]
+        odom_msg.pose.pose.position.y = self.vehicle_local_position[1]
+        odom_msg.pose.pose.position.z= self.vehicle_local_position[2]
+        odom_msg.pose.pose.orientation.w = self.vehicle_attitude[0]
+        odom_msg.pose.pose.orientation.x = self.vehicle_attitude[1]
+        odom_msg.pose.pose.orientation.y = self.vehicle_attitude[2]
+        odom_msg.pose.pose.orientation.z= self.vehicle_attitude[3]
+
+        # velocity
+        odom_msg.child_frame_id = 'base_link'
+        odom_msg.twist.twist.linear.x = self.vehicle_local_velocity[0]
+        odom_msg.twist.twist.linear.y = self.vehicle_local_velocity[1]
+        odom_msg.twist.twist.linear.z = self.vehicle_local_velocity[2]
+        odom_msg.twist.twist.angular.x = self.vehicle_local_angular_velocity[0]
+        odom_msg.twist.twist.angular.y = self.vehicle_local_angular_velocity[1]
+        odom_msg.twist.twist.angular.z = self.vehicle_local_angular_velocity[2]
+        
+        return odom_msg
+
+    def create_odom_tf(self, position, attitude): 
+        # tf msg    
+        t = TransformStamped()
+
+        # Read message content and assign it to corresponding tf variables
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_link'
+
+        t.transform.translation.x = position[0]
+        t.transform.translation.y = position[1]
+        t.transform.translation.z = position[2]
+
+        t.transform.rotation.w = attitude[0]
+        t.transform.rotation.x = attitude[1]
+        t.transform.rotation.y = attitude[2]
+        t.transform.rotation.z = attitude[3]
+
+        return t
+    
     def cmdloop_callback(self):
-        vehicle_pose_msg = vector2PoseMsg('map', self.vehicle_local_position, self.vehicle_attitude)
+        vehicle_pose_msg = vector2PoseMsg('odom', self.vehicle_local_position, self.vehicle_attitude)
         self.vehicle_pose_pub.publish(vehicle_pose_msg)
 
         # Publish time history of the vehicle path
@@ -163,7 +221,7 @@ class PX4Visualizer(Node):
         self.vehicle_path_pub.publish(self.vehicle_path_msg)
 
         # Publish time history of the vehicle path
-        setpoint_pose_msg = vector2PoseMsg('map', self.setpoint_position, self.vehicle_attitude)
+        setpoint_pose_msg = vector2PoseMsg('odom', self.setpoint_position, self.vehicle_attitude)
         self.setpoint_path_msg.header = setpoint_pose_msg.header
         self.setpoint_path_msg.poses.append(setpoint_pose_msg)
         self.setpoint_path_pub.publish(self.setpoint_path_msg)
@@ -171,6 +229,14 @@ class PX4Visualizer(Node):
         # Publish arrow markers for velocity
         velocity_msg = self.create_arrow_marker(1, self.vehicle_local_position, self.vehicle_local_velocity)
         self.vehicle_vel_pub.publish(velocity_msg)
+
+        # Publish odometry
+        odometry_msg = self.create_odom_msg()
+        self.odometry_publisher.publish(odometry_msg)
+
+        t = self.create_odom_tf(self.vehicle_local_position, self.vehicle_attitude)
+        # Send the transformation
+        self.tf_broadcaster.sendTransform(t)
 
 def main(args=None):
     rclpy.init(args=args)
