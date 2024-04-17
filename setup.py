@@ -24,9 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'offboard_control = px4_control.offboard_control:main',
-            'visualizer = px4_control.visualizer:main', 
-            'simulation = px4_control.simulation:main'
+            'offboard_control = px4_control.offboard_control:main'
         ],
     },
 )
