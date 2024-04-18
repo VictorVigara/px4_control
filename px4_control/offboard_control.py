@@ -48,8 +48,8 @@ class OffboardControl(Node):
 
     def global_waypoint_callback(self, msg):
         # Convert from ENU (ROS) to NED (px4)
-        x = msg.vector.x
-        y = -msg.vector.y
+        x = msg.vector.y
+        y = msg.vector.x
         z = -msg.vector.z
 
         self.global_waypoint = [x, y, z]
