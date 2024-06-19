@@ -44,7 +44,7 @@ class OffboardControl(Node):
         self.global_waypoint = [0.0, 0.0, 0.0]
 
         # Create a timer to publish control commands
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(0.01, self.timer_callback)
 
     def global_waypoint_callback(self, msg):
         # Convert from ENU (ROS) to NED (px4)
